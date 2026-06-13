@@ -1,16 +1,19 @@
 # mem-lite
 
-A lightweight MCP (Model Context Protocol) server for memory management using SQLite with full-text search (FTS5), ULID generation, and a bidirectional relational graph system.
+A lightweight MCP (Model Context Protocol) server for memory management using SQLite with full-text search, ULID generation, bidirectional relational graph system, and async/await architecture with comprehensive Field validation.
 
 ## Features
 
+- **Async Architecture**: 100% non-blocking operations with async/await and aiosqlite
+- **SQLModel Integration**: Automatic table creation with type-safe ORM
 - **ULID-based IDs**: Automatically generated ULIDs for memories with embedded timestamps
 - **Full-Text Search**: FTS5 indexed search across title, content, summary, and tags
-- **Intelligent Scoring**: Importance scoring combines FTS5 relevance (50%), recency (30%), and relationship density (20%)
+- **Intelligent Scoring**: Importance scoring combines FTS5 relevance (40%), recency (30%), and relationship density (30%)
 - **Bidirectional Relations**: Create relationships between memories that work in both directions
 - **Normalized Tags**: All tags automatically normalized to kebab-case
 - **Bulk Operations**: Get multiple memories in a single tool call
 - **Cascade Delete**: Automatic cleanup of related records when a memory is deleted
+- **Field Validation**: Comprehensive input validation with Pydantic Field metadata
 - **SQLite Backend**: Persistent storage in `~/.mem-lite/memory.db`
 
 ## Installation
@@ -51,13 +54,21 @@ memory_relations (bidirectional graph)
 └─ weight (0-1)
 ```
 
-## 7 Tools
+## 7 Tools (All with Field Validation)
+
+All tools follow FastMCP best practices with comprehensive Pydantic Field validation, descriptions, and constraints for LLM clients.
 
 ### 1. `save_memory`
 
 Creates a new memory with automatic ULID generation.
 
-**Input:**
+**Parameters:**
+- `title` (str): Memory title (min: 1, max: 500 chars) **required**
+- `content` (str): Full memory content (min: 1, max: 50,000 chars) **required**
+- `summary` (str): Optional memory summary (max: 1,000 chars) **optional**
+- `tags` (list[str]): Tags (auto-normalized to kebab-case) **optional**
+
+**Example:**
 ```json
 {
   "title": "Python Basics",
@@ -79,9 +90,15 @@ Creates a new memory with automatic ULID generation.
 
 ### 2. `update_memory`
 
-Updates title, content, or summary of an existing memory (tags managed separately).
+Updates title, content, or summary of an existing memory.
 
-**Input:**
+**Parameters:**
+- `memory_id` (str): Memory ID (26-char ULID, pattern: `^[0-9A-Z]{26}$`) **required**
+- `title` (str): New title (min: 1, max: 500) **optional**
+- `content` (str): New content (min: 1, max: 50,000) **optional**
+- `summary` (str): New summary (max: 1,000) **optional**
+
+**Example:**
 ```json
 {
   "memory_id": "01KV1KMJV6G5TS8A",
@@ -100,9 +117,12 @@ Updates title, content, or summary of an existing memory (tags managed separatel
 
 ### 3. `remove_memory`
 
-Hard delete a memory with automatic CASCADE cleanup of tags and relations.
+Hard delete a memory with automatic CASCADE cleanup.
 
-**Input:**
+**Parameters:**
+- `memory_id` (str): Memory ID (26-char ULID) **required**
+
+**Example:**
 ```json
 {
   "memory_id": "01KV1KMJV6G5TS8A"
@@ -123,9 +143,18 @@ Hard delete a memory with automatic CASCADE cleanup of tags and relations.
 
 ### 4. `search_memory` (Super Tool)
 
-Full-text search with importance scoring and related memories. Returns both direct matches and semantically related memories up to 2 levels deep.
+Full-text search with importance scoring and related memories up to depth 2.
 
-**Input:**
+**Parameters:**
+- `query` (str): Search term(s) (min: 1, max: 200) **required**
+- `tags_filter` (list[str]): Tags to filter (AND logic) **optional**
+- `depth` (int): Related memory depth (1-2, default: 1) **optional**
+- `limit` (int): Max results (1-100, default: 20) **optional**
+- `offset` (int): Pagination offset (≥ 0, default: 0) **optional**
+- `max_memories_per_result` (int): Max returned (1-20, default: 5) **optional**
+- `max_relations_per_memory` (int): Max relations (1-10, default: 5) **optional**
+
+**Example:**
 ```json
 {
   "query": "API",
@@ -153,7 +182,7 @@ Full-text search with importance scoring and related memories. Returns both dire
         "created_at": "2026-06-13T10:30:45Z",
         "last_read_at": "2026-06-13T12:45:00Z"
       },
-      "fts5_score": 25.3,
+      "fts5_score": 0.95,
       "recency_score": 0.95,
       "relation_score": 0.08,
       "importance_score": 0.771,
@@ -161,9 +190,6 @@ Full-text search with importance scoring and related memories. Returns both dire
       "related": [
         {
           "id": "01KV1KMJV8HW2QH4",
-          "title": "REST API Design",
-          "summary": "API best practices...",
-          "tags": ["api", "rest"],
           "weight": 0.9,
           "distance": 1
         }
@@ -177,7 +203,10 @@ Full-text search with importance scoring and related memories. Returns both dire
 
 Retrieve multiple memories with complete content.
 
-**Input:**
+**Parameters:**
+- `memory_ids` (list[str]): Memory IDs to retrieve (min: 1, max: 50) **required**
+
+**Example:**
 ```json
 {
   "memory_ids": ["01KV1KMJV6G5TS8A", "01KV1KMJV8HW2QH4"]
@@ -204,9 +233,13 @@ Retrieve multiple memories with complete content.
 
 ### 6. `add_tag`
 
-Add a tag to a memory (tags auto-normalized to kebab-case).
+Add a tag to a memory (auto-normalized to kebab-case).
 
-**Input:**
+**Parameters:**
+- `memory_id` (str): Memory ID (26-char ULID) **required**
+- `tag_name` (str): Tag name (min: 1, max: 100) **required**
+
+**Example:**
 ```json
 {
   "memory_id": "01KV1KMJV6G5TS8A",
@@ -228,7 +261,12 @@ Add a tag to a memory (tags auto-normalized to kebab-case).
 
 Create a bidirectional relationship between two memories.
 
-**Input:**
+**Parameters:**
+- `memory_id_1` (str): First memory ID (26-char ULID) **required**
+- `memory_id_2` (str): Second memory ID (26-char ULID) **required**
+- `weight` (float): Relationship strength (0.0-1.0, default: 0.5) **optional**
+
+**Example:**
 ```json
 {
   "memory_id_1": "01KV1KMJV6G5TS8A",
@@ -264,18 +302,31 @@ Where:
 
 This ensures recently accessed, well-connected memories rank higher even with lower text relevance.
 
+## Scoring Algorithm
+
+The `search_memory` tool returns an `importance_score` (0-1) combining three factors:
+
+```
+importance_score = (FTS5_score * 0.4) + (Recency_score * 0.3) + (Relations_score * 0.3)
+
+Where:
+  - FTS5_score: Full-text search relevance ranking
+  - Recency_score: Time since last read (higher = more recent)
+  - Relations_score: Normalized count of direct/indirect relations
+```
+
+This ensures recently accessed, well-connected memories rank higher even with lower text relevance.
+
 ## File Structure
 
 ```
 src/mem_lite/
 ├─ __init__.py        # FastMCP entry point
-├─ server.py          # Tool registration with FastMCP
-├─ tools.py           # Implementation of 7 tools
-├─ db.py              # SQLite database layer
-├─ models.py          # Dataclasses (Memory, Tag, Relation, etc)
-├─ utils.py           # ULID, kebab-case, timestamp helpers
-├─ scoring.py         # Importance scoring algorithm
-└─ schema.sql         # SQLite DDL
+├─ server.py          # Tool registration with @mcp.tool() and Field validation
+├─ tools.py           # Implementation of 7 async tools
+├─ db.py              # Async SQLite database layer with SQLModel
+├─ models.py          # SQLModel definitions (Memory, Tag, Relation, etc)
+└─ utils.py           # ULID, kebab-case, timestamp helpers
 ```
 
 ## Database Location
@@ -302,12 +353,20 @@ tools = MemoryTools(str(db_path))
 
 ## Architecture Highlights
 
-- **No External Dependencies for Storage**: Pure SQLite, no ORM overhead
+- **Async/Await**: 100% non-blocking operations with aiosqlite and AsyncSession
+- **SQLModel ORM**: Automatic table creation and type-safe database operations
+- **Field Validation**: Comprehensive Pydantic Field constraints:
+  - String length limits (min/max_length)
+  - Numeric ranges (ge/le for greater/less than)
+  - Regex patterns for ULID validation (26-char alphanumeric)
+  - Collection size constraints (min_items/max_items)
+  - Human-readable descriptions for LLM clients
+- **No Manual Schema Management**: SQLModel.metadata.create_all() handles migrations
 - **FTS5 Indexing**: Efficient full-text search with BM25 ranking
 - **Cascade Deletes**: PRAGMA foreign_keys enabled for automatic cleanup
 - **Denormalized Tags**: Tags stored in `tags_list` field for better FTS5 performance
 - **Lazy Tool Initialization**: Tools only created when first accessed
-- **Timestamp Extraction**: ULIDs contain embedded timestamps, no separate field needed
+- **Timestamp Extraction**: ULIDs contain embedded timestamps
 
 ## MCP Integration
 

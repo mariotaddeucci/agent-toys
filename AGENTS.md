@@ -149,13 +149,69 @@ src/mem_lite/
 
 ## Testing
 
-**No existing test suite yet** (comment in pyproject.toml shows pytest is a dev dependency but no tests/ directory exists).
+### Run Tests
 
-When adding tests:
-- Use `uv run pytest`
-- Tests must be `async def` or use `asyncio.run()`
-- Each test should use a temporary DB path to avoid conflicts
-- Quick validation: run the workflow commands above
+```bash
+# Run all 59 tests
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_memory_crud.py -v
+
+# Run specific test class
+uv run pytest tests/test_memory_crud.py::TestSaveMemory -v
+
+# Run with coverage (if coverage installed)
+uv run pytest --cov=src/mem_lite
+
+# Run only fast tests (exclude edge cases if needed)
+uv run pytest -m "not slow"
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py                      # Fixtures: temp_db, memory_tools, sample_memory
+├── test_memory_crud.py              # CRUD operations (5 test classes, 15 tests)
+├── test_search.py                   # Search functionality (1 test class, 12 tests)
+├── test_tags_relations.py           # Tags/relations (2 test classes, 18 tests)
+└── test_integration_and_edge_cases.py # Integration + boundaries (3 test classes, 14 tests)
+```
+
+**Total: 59 async tests, all passing**
+
+### Test Organization
+
+- **TestSaveMemory**: Basic, summary, tags, max length
+- **TestUpdateMemory**: Single fields, all fields
+- **TestGetMemory**: Single, multiple, last_read updates, nonexistent
+- **TestRemoveMemory**: Removal with/without tags, cascade delete
+- **TestSearchMemory**: Query, depth, limit, offset, tags_filter, response structure
+- **TestAddTag**: Basic, multiple, normalization, duplicates, special chars
+- **TestAddRelation**: Basic, bidirectional, weight bounds (0.0-1.0), validation
+- **TestIntegration**: Complete workflow, update+search, cascading deletes
+- **TestEdgeCases**: Long content (50k), many tags, unicode, whitespace
+- **TestConstraintValidation**: Depth [1,2], limit [1,100], max IDs (50)
+
+### Writing Tests
+
+All tests are `async def` and use:
+- `@pytest.fixture` for fixtures
+- Temporary DB path to avoid conflicts
+- `await` for all async operations
+- Shared fixtures from conftest.py: `memory_tools`, `sample_memory`, `temp_db`
+
+Example:
+```python
+async def test_save_memory_basic(self, memory_tools):
+    result = await memory_tools.save_memory(
+        title="Test",
+        content="Content"
+    )
+    assert result['memory_id']
+    assert result['created_at']
+```
 
 ---
 

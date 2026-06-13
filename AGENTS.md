@@ -341,3 +341,25 @@ async def test():
 asyncio.run(test())
 EOF
 ```
+
+---
+
+## Prompts
+
+The MCP server includes **1 comprehensive prompt** for complete memory maintenance:
+
+### Available Prompt
+
+**memory_maintenance** - Single-pass memory maintenance operation
+- Performs all maintenance in one cycle:
+  1. **Scanning & Detection**: Find duplicates, outdated memories, quality issues
+  2. **Consolidation & Compression**: Merge duplicates, compress long memories
+  3. **Quality Improvement**: Fix summaries, tags, clarity, formatting
+  4. **Network Optimization**: Strengthen/remove relationships, connect clusters
+  5. **Reporting**: Detailed summary of changes and network health score
+
+### Usage
+
+Claude and other MCP clients request the `memory_maintenance` prompt for complete knowledge base cleanup. It handles scanning, consolidation, compression, deduplication, network optimization, and quality assurance in a single operation.
+
+The prompt is defined in `src/mem_lite/server.py` with `@app.prompt()` decorator.

@@ -20,11 +20,12 @@ See [packages/mem-lite-mcp/README.md](packages/mem-lite-mcp/README.md) for detai
 
 ### `packages/agent-toys`
 
-Consolidated MCP aggregator that combines all workspace MCPs into a single unified connection point:
-- Imports and re-exports all tools from workspace MCPs
-- Provides unified namespace with prefixed tools (e.g., `mem_*` for mem-lite)
-- Combines all prompts under single connection
-- Single entry point for multi-MCP agents
+Consolidated MCP aggregator using FastMCP **composition** pattern:
+- Uses `app.mount()` with namespacing (no tool re-implementation)
+- Single unified connection point for all workspace MCPs
+- Automatically namespaced tools (e.g., `mem_*` for mem-lite)
+- Live bindings (tools added to child MCPs are immediately available)
+- Zero code duplication - each tool defined once
 
 See [packages/agent-toys/README.md](packages/agent-toys/README.md) for detailed documentation.
 
@@ -103,13 +104,15 @@ mem-lite/
 
 ## Architecture
 
-**agent-toys** consolidates MCPs by:
-1. Importing individual MCP apps (`mem_lite_mcp.server.app`)
-2. Re-registering tools with prefixed names (`mem_save_memory`, etc.)
-3. Re-registering prompts with prefixed names (`mem_maintenance`, etc.)
-4. Providing single FastMCP app that routes to all MCPs
+**agent-toys** consolidates MCPs using FastMCP's **composition pattern** with `mount()`:
 
-This allows agents to connect once and access tools from multiple MCPs.
+```python
+# agent-toys consolidates via mount() - no re-implementation
+app = FastMCP("agent-toys")
+app.mount(mem_lite_app, namespace="mem")  # Tools: mem_save_memory, mem_search_memory, etc.
+```
+
+This allows agents to connect once and access tools from multiple MCPs through a unified interface.
 
 ## Development
 

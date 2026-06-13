@@ -1,23 +1,29 @@
 # agent-toys
 
-Consolidated MCP aggregator that combines all MCPs from the workspace into a single unified connection point.
+Consolidated MCP aggregator that combines all MCPs from the workspace into a single unified connection point using FastMCP composition.
 
 ## Overview
 
 **agent-toys** is a meta-MCP server that:
-- Imports and re-exports all tools from workspace MCPs
+- Uses FastMCP `mount()` to compose multiple MCPs
+- Automatically namespaces tools from child MCPs to avoid conflicts
 - Provides a single connection point for agents
-- Prefixes tool names with their origin package (e.g., `mem_*` for mem-lite)
-- Combines all prompts under a unified namespace
-- Maintains feature parity with individual MCPs
+- Maintains live links to mounted servers (tools added later are immediately visible)
+- Zero duplication - no re-implementation of tools
+
+## Architecture
+
+```python
+app = FastMCP("agent-toys")
+app.mount(mem_lite_app, namespace="mem")
+# Tools automatically namespaced: mem_save_memory, mem_search_memory, etc.
+```
 
 ## Features
 
-### Consolidated Tools
+### Memory Management Tools (from `mem-lite-mcp`)
 
-All tools are prefixed with their source MCP:
-
-**Memory Management** (from `mem-lite-mcp`):
+All tools are automatically prefixed with `mem_` namespace:
 - `mem_save_memory` - Save new memory
 - `mem_update_memory` - Update existing memory
 - `mem_remove_memory` - Delete memory
@@ -28,7 +34,6 @@ All tools are prefixed with their source MCP:
 
 ### Unified Prompts
 
-**Memory** (from `mem-lite-mcp`):
 - `mem_maintenance` - Complete memory maintenance cycle
 
 ## Installation
@@ -50,113 +55,126 @@ python -m agent_toys
 uv run python -c "from agent_toys import app; app.run()"
 ```
 
-## Architecture
+## How Composition Works
 
-```
-agent-toys/
-├── src/agent_toys/
-│   ├── __init__.py        # Main app, imports and re-exports MCP tools/prompts
-│   └── __main__.py        # CLI entry point
-└── tests/                 # Test suite (future)
-```
-
-## How It Works
-
-1. **Imports MCP Apps**: Imports `app` instances from workspace MCPs
-2. **Re-registers Tools**: Creates wrapper tools with prefixed names
-3. **Re-registers Prompts**: Creates wrapper prompts with prefixed names
-4. **Single Connection**: Clients connect to `agent-toys` and access all tools
-
-## Design Pattern
+With FastMCP `mount()`, **no tool re-implementation** is needed:
 
 ```python
-# Example: mem-lite-mcp tool re-exported in agent-toys
+from fastmcp import FastMCP
+from mem_lite_mcp.server import app as mem_lite_app
 
-@app.tool()
-async def mem_save_memory(
-    title: str,
-    content: str,
-    ...,
-    tools: MemoryTools = Depends(get_memory_tools)
-) -> dict:
-    """[mem-lite] Save a new memory..."""
-    return await tools.save_memory(title, content, ...)
+app = FastMCP("agent-toys")
+app.mount(mem_lite_app, namespace="mem")
+# Done! All tools from mem_lite_app are now available as mem_*
 ```
 
-**Naming Convention**:
-- Tool prefix: MCP namespace (e.g., `mem_` for mem-lite)
-- Function name: Original tool name
-- Docstring prefix: `[MCP-name]` for clarity
+**Benefits:**
+- Single source of truth (tools defined once in mem-lite-mcp)
+- Automatic namespace conflict resolution
+- Live binding (tools added to mem_lite_app later are immediately visible)
+- Zero code duplication
+- Minimal boilerplate
+
+## Namespacing
+
+| Original Tool (mem-lite-mcp) | Namespaced in agent-toys |
+|------------------------------|--------------------------|
+| `save_memory`                | `mem_save_memory`        |
+| `search_memory`              | `mem_search_memory`      |
+| `get_memory`                 | `mem_get_memory`         |
+| `add_tag`                    | `mem_add_tag`            |
+| `add_relation`               | `mem_add_relation`       |
 
 ## Adding a New MCP
 
 To add a new MCP to the consolidator:
 
-1. **Add dependency** to `agent-toys/pyproject.toml`:
+1. **Create the MCP package** (e.g., `packages/new-mcp/`)
+2. **Add to agent-toys** in `src/agent_toys/__init__.py`:
+   ```python
+   from fastmcp import FastMCP
+   from mem_lite_mcp.server import app as mem_lite_app
+   from new_mcp.server import app as new_mcp_app
+   
+   app = FastMCP("agent-toys")
+   app.mount(mem_lite_app, namespace="mem")
+   app.mount(new_mcp_app, namespace="new")
+   ```
+
+3. **Add dependency** to `agent-toys/pyproject.toml`:
    ```toml
    dependencies = [
-       "mem-lite-mcp @ file://../../packages/mem-lite-mcp",
-       "new-mcp @ file://../../packages/new-mcp",
+       "fastmcp>=3.4.2",
+       "mem-lite-mcp",
+       "new-mcp",
    ]
    ```
 
-2. **Import and wrap tools** in `src/agent_toys/__init__.py`:
-   ```python
-   from new_mcp.server import app as new_mcp_app
-   from new_mcp.tools import NewMCPTools
-   
-   def get_new_mcp_tools() -> NewMCPTools:
-       return NewMCPTools()
-   
-   @app.tool()
-   async def new_my_tool(..., tools: NewMCPTools = Depends(get_new_mcp_tools)):
-       return await tools.my_tool(...)
-   ```
-
-3. **Sync workspace**:
+4. **Sync workspace**:
    ```bash
    uv sync
    ```
 
+That's it! No tool re-wrapping needed.
+
 ## Testing
 
 ```bash
-# Run all tests
-uv run pytest
+# Run consolidation tests
+uv run pytest tests/
 
-# Test server imports
-uv run python -c "from agent_toys import app; print(f'✓ {app.name} ready with {len(app._tools)} tools')"
+# Test server composition
+uv run python -c "from agent_toys import app; print(f'✓ {app.name} ready')"
 ```
+
+## Composition Pattern
+
+This follows FastMCP's composition pattern exactly:
+
+```
+Clients (Claude, etc.)
+    ↓
+agent-toys (parent)
+    ├── mount(mem_lite_app, namespace="mem")
+    │   └─ mem_save_memory, mem_search_memory, etc.
+    ├── mount(future_app, namespace="future")
+    │   └─ future_*, ...
+    └── mount(another_app, namespace="another")
+        └─ another_*, ...
+```
+
+## Architecture
+
+```
+mem-lite/
+├── packages/
+│   ├── mem-lite-mcp/
+│   │   └── src/mem_lite_mcp/server.py (defines app + tools)
+│   └── agent-toys/
+│       └── src/agent_toys/__init__.py (mounts mem_lite_app)
+└── pyproject.toml (workspace)
+```
+
+## Entry Points
+
+- **CLI**: `agent-toys`
+- **Module**: `python -m agent_toys`
 
 ## Dependencies
 
 - `fastmcp>=3.4.2` - MCP server framework
 - `mem-lite-mcp` - Memory management MCP
-- Additional MCPs as added
 
-## Development
+## Key Benefits of Composition
 
-All tools use FastMCP's `Depends()` for clean dependency injection, maintaining the same patterns as individual MCPs.
+✅ **No Duplication** - Tools defined once, composed multiple times
+✅ **Namespace Isolation** - No conflicts between MCPs
+✅ **Live Binding** - Tools added to child MCPs are immediately visible
+✅ **Minimal Boilerplate** - Just mount and you're done
+✅ **Scalable** - Add MCPs without code duplication
+✅ **Maintainable** - Changes to tools only need to happen in one place
 
-### Entry Points
+## Related
 
-- **CLI**: `agent-toys`
-- **Module**: `python -m agent_toys`
-
-### Workspace Context
-
-Part of the `mem-lite` workspace:
-```
-mem-lite/
-├── packages/mem-lite-mcp/    # Memory management MCP
-├── packages/agent-toys/      # This package
-└── pyproject.toml            # Workspace configuration
-```
-
-## Future Enhancements
-
-- CLI for discovering available tools/prompts
-- Tool/prompt filtering by tag or prefix
-- Metric collection across MCPs
-- Priority/rate limiting for tools
-- Cross-MCP composition patterns
+- See [gofastmcp.com/servers/composition](https://gofastmcp.com/servers/composition) for composition documentation
+- See [packages/mem-lite-mcp/README.md](../mem-lite-mcp/README.md) for memory MCP details

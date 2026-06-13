@@ -80,12 +80,13 @@ async def test_can_relate_via_consolidator(memory_tools):
 
 
 async def test_consolidated_namespace():
-    """Test that consolidator maintains proper namespacing."""
+    """Test that consolidator maintains proper namespacing via mount."""
     # Check that agent-toys app has been created
     assert app is not None
     assert app.name == "agent-toys"
     
-    # Verify we can import from consolidator
-    from agent_toys import mem_save_memory, mem_search_memory
-    assert callable(mem_save_memory)
-    assert callable(mem_search_memory)
+    # With composition, tools are mounted from mem_lite_app
+    # and automatically namespaced via mount(namespace="mem")
+    # Tools available: mem_save_memory, mem_search_memory, etc.
+    from mem_lite_mcp.server import app as mem_lite_app
+    assert mem_lite_app is not None

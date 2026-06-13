@@ -18,8 +18,11 @@
 # Install dependencies (creates .venv)
 uv sync
 
-# Run the MCP server
+# Run the MCP server (via entry point script)
 uv run mem-lite
+
+# Run the MCP server (via module)
+uv run python -m src.mem_lite
 
 # Run a single test
 uv run pytest tests/test_name.py -v
@@ -158,8 +161,8 @@ uv run pytest -v
 # Run specific test file
 uv run pytest tests/test_memory_crud.py -v
 
-# Run specific test class
-uv run pytest tests/test_memory_crud.py::TestSaveMemory -v
+# Run specific test function
+uv run pytest tests/test_memory_crud.py::test_save_memory_basic -v
 
 # Run with coverage (if coverage installed)
 uv run pytest --cov=src/mem_lite
@@ -173,38 +176,56 @@ uv run pytest -m "not slow"
 ```
 tests/
 ├── conftest.py                      # Fixtures: temp_db, memory_tools, sample_memory
-├── test_memory_crud.py              # CRUD operations (5 test classes, 15 tests)
-├── test_search.py                   # Search functionality (1 test class, 12 tests)
-├── test_tags_relations.py           # Tags/relations (2 test classes, 18 tests)
-└── test_integration_and_edge_cases.py # Integration + boundaries (3 test classes, 14 tests)
+├── test_memory_crud.py              # CRUD operations (15 async functions)
+├── test_search.py                   # Search functionality (12 async functions)
+├── test_tags_relations.py           # Tags/relations (15 async functions)
+└── test_integration_and_edge_cases.py # Integration + boundaries (17 async functions)
 ```
 
-**Total: 59 async tests, all passing**
+**Total: 59 async test functions, all passing**
 
 ### Test Organization
 
-- **TestSaveMemory**: Basic, summary, tags, max length
-- **TestUpdateMemory**: Single fields, all fields
-- **TestGetMemory**: Single, multiple, last_read updates, nonexistent
-- **TestRemoveMemory**: Removal with/without tags, cascade delete
-- **TestSearchMemory**: Query, depth, limit, offset, tags_filter, response structure
-- **TestAddTag**: Basic, multiple, normalization, duplicates, special chars
-- **TestAddRelation**: Basic, bidirectional, weight bounds (0.0-1.0), validation
-- **TestIntegration**: Complete workflow, update+search, cascading deletes
-- **TestEdgeCases**: Long content (50k), many tags, unicode, whitespace
-- **TestConstraintValidation**: Depth [1,2], limit [1,100], max IDs (50)
+All tests are simple async functions (not classes) for clarity:
+
+**test_memory_crud.py (15 tests)**
+- test_save_memory_basic, test_save_memory_with_summary, test_save_memory_with_tags, test_save_memory_empty_tags, test_save_memory_max_content_length
+- test_update_memory_title, test_update_memory_content, test_update_memory_summary, test_update_memory_all_fields
+- test_get_memory_single, test_get_memory_multiple, test_get_memory_updates_last_read, test_get_memory_nonexistent
+- test_remove_memory, test_remove_memory_with_tags, test_remove_memory_nonexistent
+
+**test_search.py (12 tests)**
+- test_search_basic, test_search_by_content
+- test_search_with_depth_1, test_search_with_depth_2
+- test_search_with_limit, test_search_with_offset, test_search_with_tags_filter
+- test_search_empty_query, test_search_no_results
+- test_search_max_memories_per_result, test_search_max_relations_per_memory, test_search_response_structure
+
+**test_tags_relations.py (15 tests)**
+- test_add_tag_basic, test_add_tag_multiple, test_add_tag_normalization, test_add_tag_duplicate, test_add_tag_special_characters, test_add_tag_empty_name
+- test_add_relation_basic, test_add_relation_bidirectional
+- test_add_relation_weight_min, test_add_relation_weight_max, test_add_relation_weight_mid
+- test_add_relation_invalid_weight_negative, test_add_relation_invalid_weight_over_one
+- test_add_relation_same_memory, test_add_relation_update_weight
+
+**test_integration_and_edge_cases.py (17 tests)**
+- test_complete_workflow, test_update_and_search, test_remove_memory_with_relations (integration)
+- test_very_long_title, test_very_long_content, test_many_tags, test_unicode_content, test_unicode_tags, test_empty_summary, test_none_summary, test_newlines_in_content, test_special_characters_in_search, test_whitespace_normalization_in_tags (edge cases)
+- test_search_depth_bounds, test_search_limit_bounds, test_get_memory_max_ids (constraints)
 
 ### Writing Tests
 
-All tests are `async def` and use:
-- `@pytest.fixture` for fixtures
-- Temporary DB path to avoid conflicts
+All tests are `async def` functions using:
+- `@pytest.fixture` for shared fixtures from conftest.py
+- `memory_tools` fixture: MemoryTools instance with temporary DB
+- `sample_memory` fixture: Pre-created test memory
+- `temp_db` fixture: Temporary database path
 - `await` for all async operations
-- Shared fixtures from conftest.py: `memory_tools`, `sample_memory`, `temp_db`
 
 Example:
 ```python
-async def test_save_memory_basic(self, memory_tools):
+async def test_save_memory_basic(memory_tools):
+    """Test saving a basic memory."""
     result = await memory_tools.save_memory(
         title="Test",
         content="Content"

@@ -4,7 +4,35 @@ requires-python = ">=3.14"
 
 [manifest]
 members = [
+    "agent-toys",
     "mem-lite-mcp",
+]
+
+[[package]]
+name = "agent-toys"
+version = "0.1.0"
+source = { editable = "packages/agent-toys" }
+dependencies = [
+    { name = "fastmcp" },
+    { name = "mem-lite-mcp" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastmcp", specifier = ">=3.4.2" },
+    { name = "mem-lite-mcp", editable = "packages/mem-lite-mcp" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.0" },
+    { name = "pytest-asyncio", specifier = ">=0.24.0" },
 ]
 
 [[package]]

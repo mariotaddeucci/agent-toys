@@ -1,2 +1,5 @@
 [tool.uv.workspace]
-members = ["packages/mem-lite-mcp"]
+members = [
+    "packages/mem-lite-mcp",
+    "packages/agent-toys",
+]

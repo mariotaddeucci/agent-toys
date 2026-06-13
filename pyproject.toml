@@ -25,4 +25,16 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=9.1.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = ["."]
+markers = [
+    "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
 ]

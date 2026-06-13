@@ -1,7 +1,7 @@
 """Tests for search functionality."""
 
 import pytest
-from src.mem_lite.tools import MemoryTools
+from mem_lite_mcp.tools import MemoryTools
 
 
 async def test_search_basic(memory_tools):

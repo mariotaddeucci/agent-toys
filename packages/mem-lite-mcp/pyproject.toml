@@ -1,0 +1,40 @@
+[project]
+name = "mem-lite-mcp"
+version = "0.1.0"
+description = "FastMCP server for memory management using SQLite and SQLModel"
+readme = "README.md"
+authors = [
+    { name = "Mario Taddeucci", email = "mariotaddeucci@gmx.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastmcp>=3.4.2",
+    "python-ulid>=2.3.0",
+    "sqlmodel>=0.0.14",
+    "aiosqlite>=0.22.0",
+    "greenlet>=3.0.0",
+]
+
+[project.scripts]
+mem-lite-mcp = "mem_lite_mcp:main"
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = ["."]
+markers = [
+    "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
+]

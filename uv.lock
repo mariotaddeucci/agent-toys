@@ -2,6 +2,11 @@ version = 1
 revision = 3
 requires-python = ">=3.14"
 
+[manifest]
+members = [
+    "mem-lite-mcp",
+]
+
 [[package]]
 name = "aiofile"
 version = "3.11.1"
@@ -617,9 +622,9 @@ wheels = [
 ]
 
 [[package]]
-name = "mem-lite"
+name = "mem-lite-mcp"
 version = "0.1.0"
-source = { editable = "." }
+source = { editable = "packages/mem-lite-mcp" }
 dependencies = [
     { name = "aiosqlite" },
     { name = "fastmcp" },

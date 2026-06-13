@@ -1,7 +1,7 @@
 """Integration and edge case tests."""
 
 import pytest
-from src.mem_lite.tools import MemoryTools
+from mem_lite_mcp.tools import MemoryTools
 
 
 # ==================== INTEGRATION TESTS ====================

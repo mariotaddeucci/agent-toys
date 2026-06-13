@@ -1,7 +1,7 @@
 """Tests for memory operations (save, update, get, remove)."""
 
 import pytest
-from src.mem_lite.tools import MemoryTools
+from mem_lite_mcp.tools import MemoryTools
 
 
 # ==================== SAVE MEMORY TESTS ====================

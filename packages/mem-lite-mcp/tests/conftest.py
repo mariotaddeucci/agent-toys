@@ -4,8 +4,8 @@ import asyncio
 import tempfile
 from pathlib import Path
 import pytest
-from src.mem_lite.tools import MemoryTools
-from src.mem_lite.db import Database
+from mem_lite_mcp.tools import MemoryTools
+from mem_lite_mcp.db import Database
 
 
 @pytest.fixture

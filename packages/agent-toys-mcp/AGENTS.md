@@ -48,13 +48,13 @@
 1. Create `packages/your-mcp/src/your_mcp/server.py`:
    ```python
    from fastmcp import FastMCP
-   
+
    app = FastMCP("your-mcp")
-   
+
    @app.tool()
    async def your_tool(param: str) -> str:
        return f"Result: {param}"
-   
+
    def agent_toys_mcp_mcp():
        return app
    ```

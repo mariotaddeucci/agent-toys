@@ -68,7 +68,7 @@ async def test_add_tag_empty_name(sample_memory, memory_tools):
         result = await memory_tools.add_tag(memory_id, "")
         # If it succeeds, tag_id should not be empty
         assert result["tag_id"]
-    except ValueError, Exception:
+    except (ValueError, Exception):
         # Expected behavior
         pass
 
@@ -136,7 +136,7 @@ async def test_add_relation_invalid_weight_negative(memory_tools):
     try:
         await memory_tools.add_relation(mem1["memory_id"], mem2["memory_id"], weight=-0.5)
         pytest.fail("Should reject negative weight")
-    except ValueError, Exception:
+    except (ValueError, Exception):
         pass
 
 
@@ -149,7 +149,7 @@ async def test_add_relation_invalid_weight_over_one(memory_tools):
     try:
         await memory_tools.add_relation(mem1["memory_id"], mem2["memory_id"], weight=1.5)
         pytest.fail("Should reject weight > 1.0")
-    except ValueError, Exception:
+    except (ValueError, Exception):
         pass
 
 
@@ -162,7 +162,7 @@ async def test_add_relation_same_memory(memory_tools):
         result = await memory_tools.add_relation(mem["memory_id"], mem["memory_id"], weight=0.5)
         # If allowed, should work
         assert result["relation_id"]
-    except ValueError, Exception:
+    except (ValueError, Exception):
         # If not allowed, that's also fine
         pass
 

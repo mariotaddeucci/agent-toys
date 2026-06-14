@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Mario Taddeucci", email = "mariotaddeucci@gmx.com" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=3.4.2",
     "python-ulid>=2.3.0",

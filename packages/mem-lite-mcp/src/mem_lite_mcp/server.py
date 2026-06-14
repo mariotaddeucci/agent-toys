@@ -99,7 +99,10 @@ async def search_memory(
     tools: MemoryTools = Depends(get_memory_tools),
     ctx: Context = None,
 ) -> dict:
-    """Search memories with FTS5 full-text search, tag filtering, and importance scoring (FTS5 40% + Recency 30% + Relations 30%)."""
+    """Search memories with FTS5 full-text search, tag filtering, and importance scoring.
+
+    Scoring: FTS5 40% + Recency 30% + Relations 30%.
+    """
     await ctx.debug(
         "Starting search_memory",
         extra={"query": query, "tags_filter": tags_filter, "depth": depth, "limit": limit, "offset": offset},
@@ -175,7 +178,10 @@ async def add_relation(
     tools: MemoryTools = Depends(get_memory_tools),
     ctx: Context = None,
 ) -> dict:
-    """Create bidirectional relationship between memories with weight 0.0 (weak) to 1.0 (strong). Updates weight if exists."""
+    """Create bidirectional relationship between memories with weight 0.0 (weak) to 1.0 (strong).
+
+    Updates weight if relationship already exists.
+    """
     await ctx.debug(
         "Starting add_relation", extra={"memory_id_1": memory_id_1, "memory_id_2": memory_id_2, "weight": weight}
     )

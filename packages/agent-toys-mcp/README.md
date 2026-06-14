@@ -103,7 +103,7 @@ uv run python -c "from agent_toys_mcp import app; app.run()"
 3. **agent-toys-mcp discovers and mounts** at startup:
    ```python
    from agent_toys_mcp.discovery import get_mcp_servers
-   
+
    for server in get_mcp_servers():
        app.mount(server)  # Auto-namespaced
    ```
@@ -117,13 +117,13 @@ To create a new MCP compatible with agent-toys-mcp:
 2. **Define your FastMCP app** in `src/my_mcp/server.py`:
    ```python
    from fastmcp import FastMCP
-   
+
    app = FastMCP("my-mcp")
-   
+
    @app.tool()
    async def my_tool(param: str) -> str:
        return f"Hello {param}"
-   
+
    # Register for agent-toys-mcp discovery
    def agent_toys_mcp_mcp():
        return app
@@ -136,12 +136,12 @@ To create a new MCP compatible with agent-toys-mcp:
    ```
 
 4. **Add to agent-toys-mcp** (optional, for optional dependencies):
-   
+
    Update `packages/agent-toys-mcp/pyproject.toml`:
    ```toml
    [tool.uv.sources]
    my-mcp = { workspace = true }
-   
+
    [dependency-groups]
    full = [
        "mem-lite-mcp",

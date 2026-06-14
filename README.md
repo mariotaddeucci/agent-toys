@@ -142,4 +142,3 @@ To add a new MCP to the workspace:
 - ✅ Comprehensive test coverage (59 tests for mem-lite)
 - ✅ Single consolidated connection point
 - ✅ Extensible workspace for multiple MCPs
-

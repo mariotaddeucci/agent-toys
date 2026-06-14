@@ -26,12 +26,12 @@
   ```python
   import asyncio
   from mem_lite_mcp.tools import MemoryTools
-  
+
   async def test():
       tools = MemoryTools(":memory:")
       result = await tools.save_memory("title", "content")
       print(result)
-  
+
   asyncio.run(test())
   ```
 

@@ -1,7 +1,7 @@
 [project]
-name = "agent-toys"
+name = "agent-toys-mcp"
 version = "0.1.0"
-description = "Consolidated MCP aggregator combining all workspace MCPs into a single connection"
+description = "Auto-discovering MCP aggregator that composes all workspace MCPs into a single connection"
 readme = "README.md"
 authors = [
     { name = "Mario Taddeucci", email = "mariotaddeucci@gmx.com" }
@@ -9,11 +9,10 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "fastmcp>=3.4.2",
-    "mem-lite-mcp",
 ]
 
 [project.scripts]
-agent-toys = "agent_toys:main"
+agent-toys-mcp = "agent_toys_mcp:main"
 
 [build-system]
 requires = ["uv_build>=0.11.0,<0.12.0"]
@@ -26,6 +25,9 @@ mem-lite-mcp = { workspace = true }
 dev = [
     "pytest>=9.1.0",
     "pytest-asyncio>=0.24.0",
+]
+full = [
+    "mem-lite-mcp",
 ]
 
 [tool.pytest.ini_options]

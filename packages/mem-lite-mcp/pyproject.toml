@@ -18,6 +18,9 @@ dependencies = [
 [project.scripts]
 mem-lite-mcp = "mem_lite_mcp:main"
 
+[project.entry-points."agent_toys_mcp"]
+mem-lite = "mem_lite_mcp.server:agent_toys_mcp"
+
 [build-system]
 requires = ["uv_build>=0.11.0,<0.12.0"]
 build-backend = "uv_build"

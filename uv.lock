@@ -4,17 +4,16 @@ requires-python = ">=3.14"
 
 [manifest]
 members = [
-    "agent-toys",
+    "agent-toys-mcp",
     "mem-lite-mcp",
 ]
 
 [[package]]
-name = "agent-toys"
+name = "agent-toys-mcp"
 version = "0.1.0"
-source = { editable = "packages/agent-toys" }
+source = { editable = "packages/agent-toys-mcp" }
 dependencies = [
     { name = "fastmcp" },
-    { name = "mem-lite-mcp" },
 ]
 
 [package.dev-dependencies]
@@ -22,18 +21,19 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
 ]
+full = [
+    { name = "mem-lite-mcp" },
+]
 
 [package.metadata]
-requires-dist = [
-    { name = "fastmcp", specifier = ">=3.4.2" },
-    { name = "mem-lite-mcp", editable = "packages/mem-lite-mcp" },
-]
+requires-dist = [{ name = "fastmcp", specifier = ">=3.4.2" }]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pytest", specifier = ">=9.1.0" },
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
 ]
+full = [{ name = "mem-lite-mcp", editable = "packages/mem-lite-mcp" }]
 
 [[package]]
 name = "aiofile"

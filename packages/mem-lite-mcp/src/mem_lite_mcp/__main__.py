@@ -1,7 +1,5 @@
-"""CLI entry point for mem-lite MCP server."""
+from mem_lite_mcp.server import app
 
-import sys
-from src.mem_lite import main
 
-if __name__ == "__main__":
-    main()
+def main() -> None:
+    app.run()

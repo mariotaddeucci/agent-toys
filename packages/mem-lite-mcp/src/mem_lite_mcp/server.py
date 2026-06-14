@@ -1,23 +1,16 @@
-"""FastMCP Server for Memory System."""
-
 from fastmcp import FastMCP
 from fastmcp.prompts import Message, PromptResult
 from fastmcp.dependencies import Depends
 from pydantic import Field
 from typing import Optional, List
-from .tools import MemoryTools
+from mem_lite_mcp.tools import MemoryTools
 
 
-# Instantiate MCP app
 app = FastMCP("mem-lite")
 
 
 def get_memory_tools() -> MemoryTools:
-    """Dependency: Provides MemoryTools instance."""
     return MemoryTools()
-
-
-# ==================== TOOLS REGISTRATION ====================
 
 @app.tool()
 async def save_memory(
@@ -134,21 +127,12 @@ async def add_relation(
     Cannot create self-relations (same memory ID for both arguments).
     """
     return await tools.add_relation(memory_id_1, memory_id_2, weight)
-
-
-# ==================== PROMPTS REGISTRATION ====================
-
 @app.prompt(
     name="memory_maintenance",
     description="Comprehensive memory maintenance cycle (consolidate, compress, deduplicate, optimize, quality check)",
     tags={"maintenance"}
 )
 def memory_maintenance_prompt() -> PromptResult:
-    """Complete memory maintenance operation in a single pass.
-    
-    Performs all maintenance tasks: scanning, consolidation, compression,
-    deduplication, network optimization, and quality assurance.
-    """
     messages = [
         Message(
             "Perform a complete memory maintenance cycle on the provided memories.\n\n"
@@ -189,4 +173,10 @@ def memory_maintenance_prompt() -> PromptResult:
         )
     ]
     return PromptResult(messages=messages)
+
+
+# Plugin entrypoint for agent-toys autodiscovery
+def agent_toys_mcp():
+    """Return this MCP for agent-toys plugin discovery."""
+    return app
 

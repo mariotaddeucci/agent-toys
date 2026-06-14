@@ -1,17 +1,13 @@
-"""SQLModel entities for Memory, Tag, and Relation with async support."""
-
 from typing import Optional, List
-from sqlmodel import SQLModel, Field, Column, String
+from sqlmodel import SQLModel, Field
 from ulid import ULID
 
 
 def generate_ulid() -> str:
-    """Generate a new ULID as string."""
     return str(ULID())
 
 
 class Tag(SQLModel, table=True):
-    """Represents a tag."""
     __tablename__ = "tags"
     
     id: str = Field(primary_key=True, max_length=26)
@@ -20,7 +16,6 @@ class Tag(SQLModel, table=True):
 
 
 class MemoryBase(SQLModel):
-    """Base memory model with common fields."""
     title: str
     content: str
     summary: Optional[str] = None
@@ -28,7 +23,6 @@ class MemoryBase(SQLModel):
 
 
 class Memory(MemoryBase, table=True):
-    """Represents a memory with auto-generated ULID."""
     __tablename__ = "memories"
     
     id: str = Field(primary_key=True, default_factory=generate_ulid, max_length=26)
@@ -37,7 +31,6 @@ class Memory(MemoryBase, table=True):
 
 
 class MemoryRead(MemoryBase):
-    """Memory for reading (with ID and timestamps)."""
     id: str
     tags: List[str] = Field(default_factory=list)
     created_at: str
@@ -45,7 +38,6 @@ class MemoryRead(MemoryBase):
 
 
 class Relation(SQLModel, table=True):
-    """Represents a relationship between two memories."""
     __tablename__ = "memory_relations"
     
     id: str = Field(primary_key=True, default_factory=generate_ulid, max_length=26)
@@ -56,7 +48,6 @@ class Relation(SQLModel, table=True):
 
 
 class RelatedMemory(MemoryBase):
-    """Related memory in search context."""
     id: str
     tags: List[str] = Field(default_factory=list)
     weight: float = 0.5
@@ -64,7 +55,6 @@ class RelatedMemory(MemoryBase):
 
 
 class SearchResultItem(SQLModel):
-    """Single search result item."""
     memory: MemoryRead
     fts5_score: float
     recency_score: float
@@ -75,7 +65,6 @@ class SearchResultItem(SQLModel):
 
 
 class SearchResult(SQLModel):
-    """Complete search result."""
     total_matches: int
     returned: int
     offset: int

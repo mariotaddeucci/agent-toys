@@ -2,7 +2,7 @@
 
 ## Setup
 - Install: `uv sync --all-groups`
-- Python: 3.14+
+- Python: 3.11+
 - Lock file: Always commit `uv.lock`
 
 ## Build & Test
@@ -15,10 +15,44 @@
 
 ## Code Style
 - Language: **English only** (code, docs, comments, commits)
-- Line length: 100
+- Line length: 120
 - Quote style: Double quotes
 - Type checking: Pyrefly (Rust-based, faster than Pyright)
 - Linting: Ruff (27 rules: quality, security, performance)
+- **Pythonic and pragmatic**: follow the Zen of Python — explicit over implicit, simple over complex, flat over nested, readability counts
+- No unnecessary abstractions; solve the problem at hand, not hypothetical future ones
+
+## FastMCP Conventions
+- **Logger**: always use `mcp.get_logger(__name__)` — never `logging.getLogger` or `print`
+- **Lifespan**: use `@asynccontextmanager` lifespan on the FastMCP app for startup/teardown (DB init, connections, cleanup) — not ad-hoc module-level init
+- **Tools**: all tools are `async def`; must `await` all I/O and DB calls
+- **Resources**: prefer FastMCP resources (`@mcp.resource`) for read-only data access over custom tools when the data is addressable by URI
+- **Prompts**: use `@mcp.prompt` for reusable prompt templates — keep tools focused on actions
+- Example lifespan pattern:
+  ```python
+  from contextlib import asynccontextmanager
+  from fastmcp import FastMCP
+
+  mcp = FastMCP("my-server")
+  logger = mcp.get_logger(__name__)
+
+  @asynccontextmanager
+  async def lifespan(app):
+      logger.info("Starting up")
+      await init_db()
+      yield
+      logger.info("Shutting down")
+
+  mcp = FastMCP("my-server", lifespan=lifespan)
+  ```
+
+## Testing
+- **Use plain functions**, not classes — `def test_something():` not `class TestSomething`
+- Group related tests by module/file, not by class hierarchy
+- Use `pytest.fixture` for shared setup; prefer function-scoped fixtures
+- Use `anyio` or `pytest-anyio` for async tests (`@pytest.mark.anyio`)
+- Test behavior, not implementation; avoid mocking internals — mock at system boundaries
+- One assertion concept per test; name tests to read as sentences: `test_save_memory_returns_id`
 
 ## Architecture
 - **mem-lite-mcp**: Memory management (7 async tools, SQLModel + SQLite)
@@ -27,7 +61,7 @@
 - **Tests**: 70 total (59 mem-lite + 11 agent-toys)
 
 ## Adding a New MCP Package
-1. Create `packages/your-mcp/src/your_mcp/server.py` with FastMCP app
+1. Create `packages/your-mcp/src/your_mcp/server.py` with FastMCP app + lifespan
 2. Register entrypoint in `[project.entry-points."agent_toys_mcp"]` (pyproject.toml)
 3. Add to workspace members list if needed
 4. Run `uv sync --all-groups`
@@ -43,7 +77,6 @@
 - **Pytest**: Unit tests (70 tests)
 
 ## Notes
-- All tools are `async def`; must `await` all DB calls
 - Memory DB path: `~/.mem-lite/memory.db` (auto-created)
 - Field validation happens at MCP protocol layer, not direct calls
 - Each package has nested AGENTS.md with detailed guidance

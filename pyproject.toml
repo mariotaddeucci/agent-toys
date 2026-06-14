@@ -9,6 +9,7 @@ dev-dependencies = [
     "pyrefly>=0.3.0",
     "pytest>=9.1.0",
     "pytest-asyncio>=0.24.0",
+    "prek>=0.4.4",
 ]
 
 [tool.ruff]

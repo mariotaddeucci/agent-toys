@@ -1,6 +1,6 @@
 import pytest
 
-from agent_toys_mcp import app
+from agent_toys_mcp.server import app
 from mem_lite_mcp.tools import MemoryTools
 
 

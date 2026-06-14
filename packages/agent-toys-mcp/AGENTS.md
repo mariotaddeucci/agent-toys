@@ -16,9 +16,9 @@
 - All code is async/await (where applicable)
 
 ## Architecture
-- **Entry point**: `agent_toys_mcp:main()` → `app.run()` (FastMCP)
+- **Entry point**: `agent_toys_mcp.server:main()` → `app.run()` (FastMCP)
 - **Zero hard-coded imports**: Uses entrypoint-based plugin discovery
-- **FastMCP composition**: Mounts all discovered MCPs automatically
+- **FastMCP lifespan**: Mounts all discovered MCPs during server startup (not at import time)
 - **Tests**: 11 async test functions (consolidation, discovery)
 
 ## Discovery Mechanism
@@ -31,7 +31,7 @@
 ## Key Commands
 - Check if app loads:
   ```bash
-  uv run python -c "from agent_toys_mcp import app; print(app.name)"
+  uv run python -c "from agent_toys_mcp.server import app; print(app.name)"
   ```
 
 - List discovered MCPs:
@@ -72,8 +72,9 @@
 ## File Structure
 ```
 src/agent_toys_mcp/
-├── __init__.py           # Entry point: main()
-├── server.py             # FastMCP app (no tools)
+├── __init__.py           # Empty
+├── __main__.py           # app.run() only
+├── server.py             # FastMCP app + lifespan (plugin mounting) + main()
 └── discovery.py          # Entrypoint scanning + loading
 ```
 

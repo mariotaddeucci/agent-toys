@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-agent-toys-mcp = "agent_toys_mcp:main"
+agent-toys-mcp = "agent_toys_mcp.server:main"
 
 [build-system]
 requires = ["uv_build>=0.11.0,<0.12.0"]

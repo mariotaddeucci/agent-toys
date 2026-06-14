@@ -1,4 +1,4 @@
-from agent_toys_mcp import main
+from agent_toys_mcp.server import app
 
 if __name__ == "__main__":
-    main()
+    app.run()

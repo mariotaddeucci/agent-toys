@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+
 from ulid import ULID
 
 
@@ -20,8 +21,7 @@ def normalize_tag(tag: str) -> str:
     tag = re.sub(r'[\s_]+', '-', tag)
     tag = re.sub(r'[^a-z0-9\-]', '', tag)
     tag = re.sub(r'-+', '-', tag)
-    tag = tag.strip('-')
-    return tag
+    return tag.strip('-')
 
 
 def get_now_timestamp() -> str:

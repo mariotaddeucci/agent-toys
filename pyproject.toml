@@ -3,3 +3,52 @@ members = [
     "packages/mem-lite-mcp",
     "packages/agent-toys-mcp",
 ]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.5.0",
+    "pyrefly>=0.3.0",
+    "pytest>=9.1.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+# Ruff linter and formatter configuration
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "F",     # Pyflakes
+    "E",     # Pycodestyle errors
+    "W",     # Pycodestyle warnings
+    "I",     # isort
+    "B",     # Bugbear
+    "SIM",   # Simplify
+    "UP",    # Type checking
+    "ASYNC", # async/await best practices
+    "LOG",   # Logging best practices
+    "RUF",   # Ruff-specific
+    "U",     # Unused imports/variables
+    "S",     # Security
+    "EM",    # Error messages
+]
+
+# Ignore rules that are too strict
+ignore = [
+    "E501",   # Line too long - handled by formatter
+    "E741",   # Ambiguous variable name
+    "S101",   # Use of assert in tests - legitimate
+    "S110",   # Try-except-pass in tests - sometimes needed
+    "B008",   # Function call in defaults - legitimate for Field()
+    "SIM108", # Use ternary instead of if/else - not always better
+    "ASYNC240", # Async pathlib in tests - acceptable
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mem_lite_mcp", "agent_toys_mcp"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

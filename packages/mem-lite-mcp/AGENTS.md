@@ -1,365 +1,59 @@
-# Agent Instructions for mem-lite
+# AGENTS.md
 
-## Overview
+## Setup
+- Install: `uv sync`
+- Python: 3.14+
+- Database: `~/.mem-lite/memory.db` (auto-created)
 
-**mem-lite** is a FastMCP server (Model Context Protocol) for memory management using SQLite, async/await architecture, SQLModel ORM, and Pydantic Field validation. All code is async; there are no sync operations.
+## Build & Test
+- Run tests: `uv run pytest tests/ -v`
+- Run single test: `uv run pytest tests/test_memory_crud.py::test_save_memory_basic -v`
 
-**Python version**: 3.14+ (required)  
-**Build system**: `uv` (not pip or poetry)  
-**Entry point**: `mem_lite:main()` → `app.run()` (FastMCP server)
+## Code Style
+- Language: English only
+- Line length: 100
+- Quote style: Double quotes
+- All code is async/await (no sync operations)
 
----
+## Architecture
+- **Entry point**: `mem_lite_mcp:main()` → `app.run()` (FastMCP)
+- **7 Tools**: save_memory, update_memory, remove_memory, search_memory, get_memory, add_tag, add_relation
+- **Database**: SQLModel ORM + SQLite + aiosqlite
+- **Tests**: 59 async test functions (CRUD, search, tags, relations, edge cases)
 
-## Developer Commands
+## Key Commands
+- Test a single tool:
+  ```python
+  import asyncio
+  from mem_lite_mcp.tools import MemoryTools
+  
+  async def test():
+      tools = MemoryTools(":memory:")
+      result = await tools.save_memory("title", "content")
+      print(result)
+  
+  asyncio.run(test())
+  ```
 
-### Setup and Run
-
-```bash
-# Install dependencies (creates .venv)
-uv sync
-
-# Run the MCP server (via entry point script)
-uv run mem-lite
-
-# Run the MCP server (via module)
-uv run python -m src.mem_lite
-
-# Run a single test
-uv run pytest tests/test_name.py -v
-
-# Run all tests
-uv run pytest
-
-# Check imports/syntax without installing
-uv run python -c "from src.mem_lite.server import app; print('OK')"
-```
-
-### Common Workflows
-
-```bash
-# Test a single tool (async context required)
-uv run python << 'EOF'
-import asyncio
-from src.mem_lite.tools import MemoryTools
-
-async def test():
-    tools = MemoryTools("/tmp/test.db")
-    result = await tools.save_memory("title", "content")
-    print(result)
-
-asyncio.run(test())
-EOF
-
-# Verify all 7 tools work
-uv run python << 'EOF'
-from src.mem_lite.server import (
-    save_memory, update_memory, remove_memory,
-    search_memory, get_memory, add_tag, add_relation
-)
-print("✓ All tools imported")
-EOF
-```
-
----
-
-## Architecture Quick Reference
-
-### File Structure
-
-```
-src/mem_lite/
-├── __init__.py           # Entry point: main() calls app.run()
-├── server.py             # 7 async @mcp.tool() functions with Field validation
-├── tools.py              # MemoryTools class: implementation of 7 tools (460 lines)
-├── db.py                 # AsyncDatabase: async SQLModel + aiosqlite layer (385 lines)
-├── models.py             # SQLModel definitions: Memory, Tag, Relation (82 lines)
-└── utils.py              # Helpers: generate_ulid, normalize_tag, timestamps
-```
-
-### Key Design Facts
-
-1. **All async**: Every tool function is `async def`. Database operations use `AsyncSession`. No sync code in hot paths.
-
-2. **SQLModel ORM**: 
-   - Automatic table creation via `SQLModel.metadata.create_all()`
-   - No manual schema management
-   - Foreign key constraints enabled via `PRAGMA foreign_keys = ON`
-
-3. **Database location**: `~/.mem-lite/memory.db` (auto-created on first DB init)
-
-4. **Lazy tool initialization**: Global `_tools` singleton in `server.py` prevents re-instantiation
-
-5. **Field validation** (all 7 tools):
-   - String constraints: `min_length`, `max_length`, `pattern` (regex for ULID)
-   - Numeric constraints: `ge`, `le` (for ranges like depth 1-2, limit 1-100)
-   - Collection constraints: `min_items`, `max_items` (e.g., memory_ids 1-50)
-   - All parameters have `description` for LLM clients
-
----
-
-## The 7 Tools (Key Constraints)
-
-| Tool | Parameters | Validation Notes |
-|------|-----------|------------------|
-| `save_memory` | title, content, summary, tags | content max 50k chars; title max 500 |
-| `update_memory` | memory_id, title, content, summary | memory_id: 26-char ULID pattern `^[0-9A-Z]{26}$` |
-| `remove_memory` | memory_id | Cascades delete tags + relations |
-| `search_memory` | query, tags_filter, depth, limit, offset, max_memories_per_result, max_relations_per_memory | depth ∈ [1,2]; limit ∈ [1,100]; max_* fields limit result sets |
-| `get_memory` | memory_ids (list) | 1-50 items; updates `last_read_at` |
-| `add_tag` | memory_id, tag_name | tag_name auto-normalized to kebab-case |
-| `add_relation` | memory_id_1, memory_id_2, weight | weight ∈ [0.0, 1.0]; bidirectional |
-
-**All memory_id parameters** must be 26-char ULID (pattern validated).
-
----
-
-## Database Schema Notes
-
-- **memories**: id (ULID PK), title, content, summary, tags_list (denormalized for FTS), created_at, last_read_at
-- **tags**: id (kebab-case), name, created_at
-- **memory_relations**: id (ULID), id_a, id_b (normalized: min < max), weight, created_at
-- **Foreign keys** enforced; CASCADE delete on memory deletion
-
----
+- Verify all tools work:
+  ```bash
+  uv run python -c "from mem_lite_mcp.server import app; print(f'✓ {app.name}')"
+  ```
 
 ## Common Gotchas
+1. **ULID Format**: Always 26 characters, alphanumeric uppercase `[0-9A-Z]{26}`
+2. **Tag Normalization**: "Machine Learning" → "machine-learning"
+3. **Async/Await Required**: Every DB operation must be awaited
+4. **Field Validation**: Constraints enforced only at MCP protocol layer, not direct calls
+5. **Default DB Path**: `MemoryTools()` with no args → `~/.mem-lite/memory.db`
 
-### 1. ULID Format
-- Always 26 characters, alphanumeric uppercase `[0-9A-Z]{26}`
-- Generated by `generate_ulid()` from `utils.py`
-- Regex pattern: `^[0-9A-Z]{26}$` (used in Field validation)
-
-### 2. Tag Normalization
-- Input "Machine Learning" → stored as "machine-learning"
-- Use `normalize_tag()` in `utils.py` if manually creating tags
-- `tags_list` field stores space-separated normalized tags
-
-### 3. Async/Await Required
-- Every DB operation returns a coroutine
-- Must `await` all calls in tools.py and db.py
-- Tests must use `asyncio.run()` or `pytest-asyncio`
-
-### 4. Field Validation
-- Pydantic Field constraints are enforced **only** when FastMCP calls the tool
-- Direct calls to `MemoryTools` methods do **not** validate Field constraints
-- This is correct: validation happens at the MCP protocol layer
-
-### 5. Default Database Path
-- `MemoryTools()` with no args → `~/.mem-lite/memory.db`
-- Tests pass explicit path: `MemoryTools("/tmp/test.db")`
-
----
-
-## Testing
-
-### Run Tests
-
-```bash
-# Run all 59 tests
-uv run pytest -v
-
-# Run specific test file
-uv run pytest tests/test_memory_crud.py -v
-
-# Run specific test function
-uv run pytest tests/test_memory_crud.py::test_save_memory_basic -v
-
-# Run with coverage (if coverage installed)
-uv run pytest --cov=src/mem_lite
-
-# Run only fast tests (exclude edge cases if needed)
-uv run pytest -m "not slow"
+## File Structure
 ```
-
-### Test Structure
-
+src/mem_lite_mcp/
+├── __init__.py           # Entry point: main()
+├── server.py             # 7 async @mcp.tool() functions
+├── tools.py              # MemoryTools class implementation
+├── db.py                 # AsyncDatabase + SQLModel
+├── models.py             # Memory, Tag, Relation definitions
+└── utils.py              # Helpers: ULID, timestamps, tag normalization
 ```
-tests/
-├── conftest.py                      # Fixtures: temp_db, memory_tools, sample_memory
-├── test_memory_crud.py              # CRUD operations (15 async functions)
-├── test_search.py                   # Search functionality (12 async functions)
-├── test_tags_relations.py           # Tags/relations (15 async functions)
-└── test_integration_and_edge_cases.py # Integration + boundaries (17 async functions)
-```
-
-**Total: 59 async test functions, all passing**
-
-### Test Organization
-
-All tests are simple async functions (not classes) for clarity:
-
-**test_memory_crud.py (15 tests)**
-- test_save_memory_basic, test_save_memory_with_summary, test_save_memory_with_tags, test_save_memory_empty_tags, test_save_memory_max_content_length
-- test_update_memory_title, test_update_memory_content, test_update_memory_summary, test_update_memory_all_fields
-- test_get_memory_single, test_get_memory_multiple, test_get_memory_updates_last_read, test_get_memory_nonexistent
-- test_remove_memory, test_remove_memory_with_tags, test_remove_memory_nonexistent
-
-**test_search.py (12 tests)**
-- test_search_basic, test_search_by_content
-- test_search_with_depth_1, test_search_with_depth_2
-- test_search_with_limit, test_search_with_offset, test_search_with_tags_filter
-- test_search_empty_query, test_search_no_results
-- test_search_max_memories_per_result, test_search_max_relations_per_memory, test_search_response_structure
-
-**test_tags_relations.py (15 tests)**
-- test_add_tag_basic, test_add_tag_multiple, test_add_tag_normalization, test_add_tag_duplicate, test_add_tag_special_characters, test_add_tag_empty_name
-- test_add_relation_basic, test_add_relation_bidirectional
-- test_add_relation_weight_min, test_add_relation_weight_max, test_add_relation_weight_mid
-- test_add_relation_invalid_weight_negative, test_add_relation_invalid_weight_over_one
-- test_add_relation_same_memory, test_add_relation_update_weight
-
-**test_integration_and_edge_cases.py (17 tests)**
-- test_complete_workflow, test_update_and_search, test_remove_memory_with_relations (integration)
-- test_very_long_title, test_very_long_content, test_many_tags, test_unicode_content, test_unicode_tags, test_empty_summary, test_none_summary, test_newlines_in_content, test_special_characters_in_search, test_whitespace_normalization_in_tags (edge cases)
-- test_search_depth_bounds, test_search_limit_bounds, test_get_memory_max_ids (constraints)
-
-### Writing Tests
-
-All tests are `async def` functions using:
-- `@pytest.fixture` for shared fixtures from conftest.py
-- `memory_tools` fixture: MemoryTools instance with temporary DB
-- `sample_memory` fixture: Pre-created test memory
-- `temp_db` fixture: Temporary database path
-- `await` for all async operations
-
-Example:
-```python
-async def test_save_memory_basic(memory_tools):
-    """Test saving a basic memory."""
-    result = await memory_tools.save_memory(
-        title="Test",
-        content="Content"
-    )
-    assert result['memory_id']
-    assert result['created_at']
-```
-
----
-
-## Validation & Constraints Quick Check
-
-Before committing changes to tools:
-
-```bash
-# 1. Verify all 7 tools exist and are async
-uv run python -c "import inspect; from src.mem_lite.server import *; assert all(inspect.iscoroutinefunction(f) for f in [save_memory, update_memory, remove_memory, search_memory, get_memory, add_tag, add_relation]); print('✓ All tools async')"
-
-# 2. Check Field metadata on server.py tools
-uv run python -c "import inspect; from src.mem_lite.server import save_memory; sig = inspect.signature(save_memory); [print(f'{k}: {v}') for k, v in sig.parameters.items()]"
-
-# 3. Test a real save + search cycle
-uv run python << 'EOF'
-import asyncio
-from src.mem_lite.tools import MemoryTools
-
-async def test():
-    tools = MemoryTools("/tmp/check.db")
-    mem = await tools.save_memory("Test", "Content")
-    result = await tools.search_memory("Content")
-    assert result['returned'] > 0
-    print(f"✓ Save + search cycle OK")
-
-asyncio.run(test())
-EOF
-```
-
----
-
-## Dependency Management
-
-All dependencies in `pyproject.toml` are **required** (not optional):
-- `fastmcp>=3.4.2`: MCP server framework
-- `python-ulid>=2.3.0`: ULID generation
-- `sqlmodel>=0.0.14`: SQLModel ORM
-- `aiosqlite>=0.22.0`: Async SQLite driver
-- `greenlet>=3.0.0`: SQLAlchemy async support
-
-**Do not add new dependencies without updating `pyproject.toml` and running `uv sync`.**
-
----
-
-## Documentation
-
-- **README.md**: Complete user guide, tool specifications, Field validation constraints
-- **src/mem_lite/server.py**: FastMCP tool registration with detailed docstrings
-- **src/mem_lite/tools.py**: Implementation docstrings with parameter descriptions
-
-When adding or modifying a tool:
-1. Update docstring in `server.py` with constraints and behavior
-2. Update docstring in `tools.py` with implementation details
-3. Update README.md tool table if parameters change
-
----
-
-## Error Handling
-
-- **ValueError**: Raised for constraint violations (e.g., weight < 0 or > 1)
-- **Async context errors**: If you forget `await`, you'll get "coroutine was never awaited"
-- **Database errors**: SQLAlchemy errors propagate; check async context is correct
-
----
-
-## Next Agent Context
-
-If you need to:
-- **Add a new tool**: Create async method in MemoryTools, register with `@app.tool()` in server.py, add Field validation, update README
-- **Modify DB schema**: Update SQLModel definition in models.py, delete test DBs, re-run sync (auto-migration)
-- **Change search algorithm**: Edit `search_memory()` in tools.py and MemoryTools; scoring formula in README
-- **Add tests**: Create `tests/` dir, use `pytest` + `asyncio.run()`, reference test patterns above
-
----
-
-## Quick Sanity Checks
-
-```bash
-# All tools importable?
-uv run python -c "from src.mem_lite.server import app; print(f'FastMCP app ready: {app.name}')"
-
-# DB auto-creates?
-uv run python << 'EOF'
-import asyncio, tempfile
-from src.mem_lite.db import Database
-
-async def test():
-    db = Database(str(tempfile.NamedTemporaryFile().name))
-    await db.init_db()
-    print("✓ Auto-create OK")
-
-asyncio.run(test())
-EOF
-
-# Tools callable?
-uv run python << 'EOF'
-import asyncio
-from src.mem_lite.tools import MemoryTools
-
-async def test():
-    t = MemoryTools(":memory:")  # In-memory DB for speed
-    m = await t.save_memory("Test", "Content")
-    print(f"✓ Tool callable: {m['memory_id'][:8]}...")
-
-asyncio.run(test())
-EOF
-```
-
----
-
-## Prompts
-
-The MCP server includes **1 comprehensive prompt** for complete memory maintenance:
-
-### Available Prompt
-
-**memory_maintenance** - Single-pass memory maintenance operation
-- Performs all maintenance in one cycle:
-  1. **Scanning & Detection**: Find duplicates, outdated memories, quality issues
-  2. **Consolidation & Compression**: Merge duplicates, compress long memories
-  3. **Quality Improvement**: Fix summaries, tags, clarity, formatting
-  4. **Network Optimization**: Strengthen/remove relationships, connect clusters
-  5. **Reporting**: Detailed summary of changes and network health score
-
-### Usage
-
-Claude and other MCP clients request the `memory_maintenance` prompt for complete knowledge base cleanup. It handles scanning, consolidation, compression, deduplication, network optimization, and quality assurance in a single operation.
-
-The prompt is defined in `src/mem_lite/server.py` with `@app.prompt()` decorator.

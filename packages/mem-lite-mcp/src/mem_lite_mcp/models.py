@@ -1,5 +1,5 @@
-from typing import Optional, List
-from sqlmodel import SQLModel, Field
+
+from sqlmodel import Field, SQLModel
 from ulid import ULID
 
 
@@ -9,7 +9,7 @@ def generate_ulid() -> str:
 
 class Tag(SQLModel, table=True):
     __tablename__ = "tags"
-    
+
     id: str = Field(primary_key=True, max_length=26)
     name: str = Field(index=True)
     created_at: str
@@ -18,13 +18,13 @@ class Tag(SQLModel, table=True):
 class MemoryBase(SQLModel):
     title: str
     content: str
-    summary: Optional[str] = None
+    summary: str | None = None
     tags_list: str = Field(default="")
 
 
 class Memory(MemoryBase, table=True):
     __tablename__ = "memories"
-    
+
     id: str = Field(primary_key=True, default_factory=generate_ulid, max_length=26)
     created_at: str
     last_read_at: str
@@ -32,14 +32,14 @@ class Memory(MemoryBase, table=True):
 
 class MemoryRead(MemoryBase):
     id: str
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     created_at: str
     last_read_at: str
 
 
 class Relation(SQLModel, table=True):
     __tablename__ = "memory_relations"
-    
+
     id: str = Field(primary_key=True, default_factory=generate_ulid, max_length=26)
     id_a: str = Field(index=True, max_length=26)
     id_b: str = Field(index=True, max_length=26)
@@ -49,7 +49,7 @@ class Relation(SQLModel, table=True):
 
 class RelatedMemory(MemoryBase):
     id: str
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     weight: float = 0.5
     distance: int = 1
 
@@ -61,7 +61,7 @@ class SearchResultItem(SQLModel):
     relation_score: float
     importance_score: float
     match_type: str = "direct_match"
-    related: List[dict] = Field(default_factory=list)
+    related: list[dict] = Field(default_factory=list)
 
 
 class SearchResult(SQLModel):
@@ -69,4 +69,4 @@ class SearchResult(SQLModel):
     returned: int
     offset: int
     query_time_ms: float
-    memories: List[dict] = Field(default_factory=list)
+    memories: list[dict] = Field(default_factory=list)

@@ -1,16 +1,16 @@
-import asyncio
 import tempfile
 from pathlib import Path
+
 import pytest
+
 from mem_lite_mcp.tools import MemoryTools
-from mem_lite_mcp.db import Database
 
 
 @pytest.fixture
 async def temp_db():
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         db_path = tmp.name
-    
+
     try:
         yield db_path
     finally:
@@ -25,10 +25,9 @@ async def memory_tools(temp_db):
 
 @pytest.fixture
 async def sample_memory(memory_tools):
-    result = await memory_tools.save_memory(
+    return await memory_tools.save_memory(
         title="Test Memory",
         content="This is a test memory content",
         summary="Test summary",
         tags=["test", "example"]
     )
-    return result

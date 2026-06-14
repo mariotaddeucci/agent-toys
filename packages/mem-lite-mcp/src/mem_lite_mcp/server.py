@@ -1,10 +1,10 @@
-from fastmcp import FastMCP
-from fastmcp.prompts import Message, PromptResult
-from fastmcp.dependencies import Depends
-from pydantic import Field
-from typing import Optional, List
-from mem_lite_mcp.tools import MemoryTools
 
+from fastmcp import Context, FastMCP
+from fastmcp.dependencies import Depends
+from fastmcp.prompts import Message, PromptResult
+from pydantic import Field
+
+from mem_lite_mcp.tools import MemoryTools
 
 app = FastMCP("mem-lite")
 
@@ -16,100 +16,177 @@ def get_memory_tools() -> MemoryTools:
 async def save_memory(
     title: str = Field(description="Memory title", min_length=1, max_length=500),
     content: str = Field(description="Full memory content", min_length=1, max_length=50000),
-    summary: Optional[str] = Field(None, description="Optional memory summary", max_length=1000),
-    tags: Optional[List[str]] = Field(None, description="List of tags (will be normalized to kebab-case)"),
-    tools: MemoryTools = Depends(get_memory_tools)
+    summary: str | None = Field(None, description="Optional memory summary", max_length=1000),
+    tags: list[str] | None = Field(None, description="List of tags (will be normalized to kebab-case)"),
+    tools: MemoryTools = Depends(get_memory_tools),
+    ctx: Context = None
 ) -> dict:
-    """Save a new memory with auto-generated ULID identifier.
-    
-    Creates a new memory entry with the provided title, content, and optional summary.
-    Tags are automatically normalized to kebab-case format. The memory ID is auto-generated
-    using ULID for sortability and built-in timestamps.
-    """
-    return await tools.save_memory(title, content, summary, tags)
+    """Create a new memory with auto-generated ULID. Tags are auto-normalized to kebab-case."""
+    await ctx.debug(f"Starting save_memory: title='{title[:50]}...'")
+    try:
+        result = await tools.save_memory(title, content, summary, tags)
+    except Exception as e:
+        await ctx.error(f"Failed to save memory: {e!s}")
+        raise
+    else:
+        await ctx.info(
+            "Memory saved successfully",
+            extra={
+                "memory_id": result["memory_id"],
+                "title": title,
+                "tags_count": len(tags or []),
+                "content_length": len(content)
+            }
+        )
+        return result
 
 
 @app.tool()
 async def update_memory(
     memory_id: str = Field(description="Memory ID to update", min_length=26, max_length=26, pattern="^[0-9A-Z]{26}$"),
-    title: Optional[str] = Field(None, description="New memory title", min_length=1, max_length=500),
-    content: Optional[str] = Field(None, description="New memory content", min_length=1, max_length=50000),
-    summary: Optional[str] = Field(None, description="New memory summary", max_length=1000),
-    tools: MemoryTools = Depends(get_memory_tools)
+    title: str | None = Field(None, description="New memory title", min_length=1, max_length=500),
+    content: str | None = Field(None, description="New memory content", min_length=1, max_length=50000),
+    summary: str | None = Field(None, description="New memory summary", max_length=1000),
+    tools: MemoryTools = Depends(get_memory_tools),
+    ctx: Context = None
 ) -> dict:
-    """Update title, content, or summary of an existing memory.
-    
-    At least one field (title, content, or summary) must be provided for update.
-    Passing None for a field leaves it unchanged.
-    """
-    return await tools.update_memory(memory_id, title, content, summary)
+    """Update a memory's title, content, or summary. Pass None to leave a field unchanged."""
+    await ctx.debug(f"Starting update_memory: memory_id={memory_id}")
+    try:
+        result = await tools.update_memory(memory_id, title, content, summary)
+    except ValueError as e:
+        await ctx.warning(f"Memory not found during update: {e!s}")
+        raise
+    except Exception as e:
+        await ctx.error(f"Failed to update memory {memory_id}: {e!s}")
+        raise
+    else:
+        await ctx.info(
+            "Memory updated successfully",
+            extra={
+                "memory_id": memory_id,
+                "updated_fields": result["updated_fields"]
+            }
+        )
+        return result
 
 
 @app.tool()
 async def remove_memory(
     memory_id: str = Field(description="Memory ID to delete", min_length=26, max_length=26, pattern="^[0-9A-Z]{26}$"),
-    tools: MemoryTools = Depends(get_memory_tools)
+    tools: MemoryTools = Depends(get_memory_tools),
+    ctx: Context = None
 ) -> dict:
-    """Delete a memory permanently.
-    
-    Performs a hard delete of the memory and all associated data
-    (tags, relations) with automatic CASCADE cleanup.
-    This operation is irreversible.
-    """
-    return await tools.remove_memory(memory_id)
+    """Delete a memory permanently with CASCADE cleanup of tags and relations."""
+    await ctx.debug(f"Starting remove_memory: memory_id={memory_id}")
+    try:
+        result = await tools.remove_memory(memory_id)
+    except Exception as e:
+        await ctx.error(f"Failed to delete memory {memory_id}: {e!s}")
+        raise
+    else:
+        await ctx.info(
+            "Memory deleted successfully",
+            extra={
+                "memory_id": memory_id,
+                "cascade_deleted": result["cascade_deleted"]
+            }
+        )
+        return result
 
 
 @app.tool()
 async def search_memory(
     query: str = Field(description="Search query term(s)", min_length=1, max_length=200),
-    tags_filter: Optional[List[str]] = Field(None, description="List of tags to filter (AND logic - all must match)"),
+    tags_filter: list[str] | None = Field(None, description="List of tags to filter (AND logic - all must match)"),
     depth: int = Field(1, description="Depth of related memories to return (1 or 2)", ge=1, le=2),
     limit: int = Field(20, description="Maximum number of search results", ge=1, le=100),
     offset: int = Field(0, description="Pagination offset for results", ge=0),
     max_memories_per_result: int = Field(5, description="Maximum memories to return in results", ge=1, le=20),
     max_relations_per_memory: int = Field(5, description="Maximum related memories per search result", ge=1, le=10),
-    tools: MemoryTools = Depends(get_memory_tools)
+    tools: MemoryTools = Depends(get_memory_tools),
+    ctx: Context = None
 ) -> dict:
-    """Search memories with full-text search, relation depth, and importance scoring.
-    
-    Returns memories matching the query, ranked by importance score combining:
-    - FTS5 relevance (40%)
-    - Recency/last-read time (30%)
-    - Relation count (30%)
-    
-    Supports tag filtering with AND logic and configurable depth for related memories.
-    Results include related memories up to the specified depth with their relationships.
-    """
-    return await tools.search_memory(query, tags_filter, depth, limit, offset,
-                                     max_memories_per_result, max_relations_per_memory)
+    """Search memories with FTS5 full-text search, tag filtering, and importance scoring (FTS5 40% + Recency 30% + Relations 30%)."""
+    await ctx.debug(
+        "Starting search_memory",
+        extra={
+            "query": query,
+            "tags_filter": tags_filter,
+            "depth": depth,
+            "limit": limit,
+            "offset": offset
+        }
+    )
+    try:
+        result = await tools.search_memory(
+            query, tags_filter, depth, limit, offset,
+            max_memories_per_result, max_relations_per_memory
+        )
+    except Exception as e:
+        await ctx.error(f"Failed to search memories with query '{query}': {e!s}")
+        raise
+    else:
+        await ctx.info(
+            "Memory search completed",
+            extra={
+                "query": query,
+                "total_matches": result["total_matches"],
+                "returned": result["returned"],
+                "query_time_ms": result["query_time_ms"]
+            }
+        )
+        return result
 
 
 @app.tool()
 async def get_memory(
-    memory_ids: List[str] = Field(description="List of memory IDs to retrieve", min_items=1, max_items=50),
-    tools: MemoryTools = Depends(get_memory_tools)
+    memory_ids: list[str] = Field(description="List of memory IDs to retrieve", min_items=1, max_items=50),
+    tools: MemoryTools = Depends(get_memory_tools),
+    ctx: Context = None
 ) -> dict:
-    """Retrieve multiple memories with complete content and metadata.
-    
-    Fetches the full content of specified memories. Updates last_read_at timestamp
-    for all retrieved memories. Returns memories in the order requested, excluding
-    any IDs that don't exist.
-    """
-    return await tools.get_memory(memory_ids)
+    """Retrieve complete memory content by ID. Automatically updates last_read_at timestamp."""
+    await ctx.debug(f"Starting get_memory: retrieving {len(memory_ids)} memories")
+    try:
+        result = await tools.get_memory(memory_ids)
+    except Exception as e:
+        await ctx.error(f"Failed to retrieve memories: {e!s}")
+        raise
+    else:
+        await ctx.info(
+            "Memories retrieved successfully",
+            extra={
+                "requested": len(memory_ids),
+                "found": result["count"]
+            }
+        )
+        return result
 
 
 @app.tool()
 async def add_tag(
     memory_id: str = Field(description="Memory ID to add tag to", min_length=26, max_length=26, pattern="^[0-9A-Z]{26}$"),
     tag_name: str = Field(description="Tag name (will be normalized to kebab-case)", min_length=1, max_length=100),
-    tools: MemoryTools = Depends(get_memory_tools)
+    tools: MemoryTools = Depends(get_memory_tools),
+    ctx: Context = None
 ) -> dict:
-    """Add a tag to an existing memory.
-    
-    Tags are automatically normalized to lowercase kebab-case format (e.g., "Machine Learning" -> "machine-learning").
-    If the tag already exists on the memory, this operation is idempotent (no duplicate tags).
-    """
-    return await tools.add_tag(memory_id, tag_name)
+    """Add a tag to a memory. Tags are auto-normalized to lowercase kebab-case. Idempotent operation."""
+    await ctx.debug(f"Starting add_tag: memory_id={memory_id}, tag={tag_name}")
+    try:
+        result = await tools.add_tag(memory_id, tag_name)
+    except Exception as e:
+        await ctx.error(f"Failed to add tag to memory {memory_id}: {e!s}")
+        raise
+    else:
+        await ctx.info(
+            "Tag added to memory",
+            extra={
+                "memory_id": memory_id,
+                "tag_name": tag_name,
+                "tag_id": result["tag_id"]
+            }
+        )
+        return result
 
 
 @app.tool()
@@ -117,16 +194,39 @@ async def add_relation(
     memory_id_1: str = Field(description="First memory ID", min_length=26, max_length=26, pattern="^[0-9A-Z]{26}$"),
     memory_id_2: str = Field(description="Second memory ID", min_length=26, max_length=26, pattern="^[0-9A-Z]{26}$"),
     weight: float = Field(0.5, description="Relationship strength weight", ge=0.0, le=1.0),
-    tools: MemoryTools = Depends(get_memory_tools)
+    tools: MemoryTools = Depends(get_memory_tools),
+    ctx: Context = None
 ) -> dict:
-    """Create a bidirectional relationship between two memories.
-    
-    Creates or updates a relationship with a weight value between 0.0 (weak) and 1.0 (strong).
-    Relationships are bidirectional - relating A to B also relates B to A.
-    If the relationship already exists, it updates the weight.
-    Cannot create self-relations (same memory ID for both arguments).
-    """
-    return await tools.add_relation(memory_id_1, memory_id_2, weight)
+    """Create bidirectional relationship between memories with weight 0.0 (weak) to 1.0 (strong). Updates weight if exists."""
+    await ctx.debug(
+        "Starting add_relation",
+        extra={
+            "memory_id_1": memory_id_1,
+            "memory_id_2": memory_id_2,
+            "weight": weight
+        }
+    )
+    try:
+        result = await tools.add_relation(memory_id_1, memory_id_2, weight)
+    except ValueError as e:
+        await ctx.warning(f"Invalid relation parameters: {e!s}")
+        raise
+    except Exception as e:
+        await ctx.error(
+            f"Failed to create relation between {memory_id_1} and {memory_id_2}: {e!s}"
+        )
+        raise
+    else:
+        await ctx.info(
+            "Relation created between memories",
+            extra={
+                "memory_id_1": memory_id_1,
+                "memory_id_2": memory_id_2,
+                "weight": weight,
+                "relation_id": result["relation_id"]
+            }
+        )
+        return result
 @app.prompt(
     name="memory_maintenance",
     description="Comprehensive memory maintenance cycle (consolidate, compress, deduplicate, optimize, quality check)",

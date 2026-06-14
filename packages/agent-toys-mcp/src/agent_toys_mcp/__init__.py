@@ -35,4 +35,3 @@ _load_mcp_plugins()
 def main() -> None:
     """Run the agent-toys-mcp server."""
     app.run()
-

@@ -52,4 +52,3 @@ def test_mcp_servers_have_required_attributes():
         assert hasattr(server, "name")
         assert hasattr(server, "mount")
         assert hasattr(server, "run")
-

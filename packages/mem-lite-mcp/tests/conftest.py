@@ -26,8 +26,5 @@ async def memory_tools(temp_db):
 @pytest.fixture
 async def sample_memory(memory_tools):
     return await memory_tools.save_memory(
-        title="Test Memory",
-        content="This is a test memory content",
-        summary="Test summary",
-        tags=["test", "example"]
+        title="Test Memory", content="This is a test memory content", summary="Test summary", tags=["test", "example"]
     )
